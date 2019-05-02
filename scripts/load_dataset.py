@@ -11,11 +11,6 @@ from matplotlib import patches
 import numpy as np
 
 
-
-# from tf_imagenet_vid.parse import parse
-# from tf_imagenet_vid.write_dataset import save_seqs_as_tfrecords
-
-
 # load .tfrecords file
 # this would be my training data; when done with one epoch, reset graph and
 # do this again for loading validation data
@@ -47,6 +42,7 @@ shape = (None, IMG_SIZE[0], IMG_SIZE[1], 3)
 # (not necessarily at the same time). if chosen too large, performance loss
 # if chosen too small, will get an error when padding with negative number
 MAX_N_OBJECTS = 30
+# how many objects to track simultaneously
 N_OBJECTS = 4
 
 
@@ -148,7 +144,9 @@ def _parse_image_function(example_proto):
   # delete the jpeg bytestring as not used anymore
   del d['frames_raw']
 
+  # number of objects in current sequence
   n_obj = d['n_obj']
+  # number of frames in current sequence
   num_frames = d['num_frames']
   _shape = [num_frames, n_obj]
 
@@ -178,10 +176,14 @@ def _parse_image_function(example_proto):
   _decode('presence', tf.uint8, 1)
   _decode('boxes', tf.float32, 4)
 
+  #############################################################################
+  # RANDOMLY SAMPLE N_OBJECTS
+  # ... out of all the objects which are present in first frame
+  # valid is a tenser which tells us which objects are present in first frame
   valid = d['presence'][0]
+  valid = tf.reshape(valid, (MAX_N_OBJECTS,))
   # number of present objects
   n_present = tf.reduce_sum(tf.cast(valid, tf.float32))
-  valid = tf.reshape(valid, (MAX_N_OBJECTS,))
   valid_idx = tf.boolean_mask(tf.range(MAX_N_OBJECTS), valid)
   # Shuffled valid indices
   valid_idx_shuffled = tf.random.shuffle(valid_idx)
@@ -190,36 +192,18 @@ def _parse_image_function(example_proto):
   # len(valid_idx_sample) will be min(N_OBJECTS, len(valid_idx_shuffled))
   valid_idx_sample = valid_idx_shuffled[:N_OBJECTS]
 
-
   d['presence'] = tf.gather(d['presence'], valid_idx_sample, axis=1)
   d['generated'] = tf.gather(d['generated'], valid_idx_sample, axis=1)
   d['occluded'] = tf.gather(d['occluded'], valid_idx_sample, axis=1)
   d['boxes'] = tf.gather(d['boxes'], valid_idx_sample, axis=1)
 
+  # if less than N_OBJECTS objects were present, padding is necesarry
   pad_final = N_OBJECTS - tf.minimum(n_present, N_OBJECTS)
   d['presence'] = tf.pad(d['presence'], [(0, 0), (0, pad_final), (0, 0)])
   d['generated'] = tf.pad(d['generated'], [(0, 0), (0, pad_final), (0, 0)])
   d['occluded'] = tf.pad(d['occluded'], [(0, 0), (0, pad_final), (0, 0)])
   d['boxes'] = tf.pad(d['boxes'], [(0, 0), (0, pad_final), (0, 0)])
-
-  # presence_padded = tf.zeros([SEQ_NUM_FRAMES, N_OBJECTS, 1])
-  # presence_padded[:,:n_present,:] = d['presence']
-  # d['presence'] = presence_padded
-  #
-  # generated_padded = tf.zeros([SEQ_NUM_FRAMES, N_OBJECTS, 1])
-  # generated_padded[:, :n_present, :] = d['generated']
-  # d['generated'] = generated_padded
-  #
-  # occluded_padded = tf.zeros([SEQ_NUM_FRAMES, N_OBJECTS, 1])
-  # occluded_padded[:, :n_present, :] = d['occluded']
-  # d['occluded'] = occluded_padded
-  #
-  # boxes_padded = tf.zeros([SEQ_NUM_FRAMES, N_OBJECTS, 4])
-  # boxes_padded[:, :n_present, :] = d['boxes']
-  # d['boxes'] = boxes_padded
-
-
-
+  #############################################################################
 
 
   return d
