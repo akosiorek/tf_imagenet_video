@@ -48,6 +48,13 @@ def video_example(properties, img_size=None):
         img_string = [read_img_as_bytes(f, img_size) for f in img_files]
         img_shape = list(img_size) + [img_shape[-1]]
 
+    # we want to create an instance of tf.train.Features which is a collection
+    # of named features.
+    # It has a single attribute feature (defined in the next line)
+    # that expects a dictionary where the key is the name of the features
+    # and the value a tf.train.Feature.
+    # (beware of the confusing naming convention: feature is a dictionary
+    # of features, i.e. each entry is a feature)
     feature = {
         'height': _int64_feature(img_shape[0]),
         'width': _int64_feature(img_shape[1]),
@@ -57,15 +64,30 @@ def video_example(properties, img_size=None):
         'n_obj': _int64_feature(properties.n_obj)
     }
 
+
     for k in 'boxes generated occluded presence'.split():
         feature[k] = _bytes_feature_list(properties[k].tobytes())
 
+    # tf.train.Example is one of the main components for structuring a TFRecord.
+    # An tf.train.Example stores features in a single attribute features of
+    # type tf.train.Features.
     return tf.train.Example(features=tf.train.Features(feature=feature))
 
 
 def save_seqs_as_tfrecords(seq_list, tfrecords_file, img_size=None):
+
+    # tf.python_io.TFRecordWriter (in contrast to tf.train.Features etc.)
+    # is actually a Python class. It accepts a file path in its path attribute
+    # and creates a writer object that works just like any other file object.
+    # The TFRecordWriter class offers write, flush and close methods.
+    # The method write accepts a string as parameter and writes it to disk,
+    # meaning that structured data must be serialized first. To this end,
+    # tf.train.Example and tf.train.SequenceExample provide SerializeToString
+    # methods:
     with tf.python_io.TFRecordWriter(tfrecords_file) as writer:
         for seq_props in seq_list:
             vid = video_example(seq_props, img_size)
             vid_string = vid.SerializeToString()
             writer.write(vid_string)
+    # It is important that the type of a feature is the same across all samples
+    # in the dataset
