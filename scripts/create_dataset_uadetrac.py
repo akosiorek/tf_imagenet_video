@@ -7,6 +7,7 @@ from tf_imagenet_vid.parse import parse_uadetrac
 from tf_imagenet_vid.write_dataset import save_seqs_as_tfrecords
 
 import argparse
+from util import log_imgs_seqs
 
 # command line argument parser
 ARGPARSER = argparse.ArgumentParser(
@@ -96,6 +97,13 @@ if __name__ == '__main__':
     time_c = time.time()
     parsed_seqs = parse_uadetrac(sequence_list, ANNOTATION_DIR, VIDEO_ROOT_DIR, img_size=IMG_SIZE)
     print('%.2fs' % (time.time() - time_c))
+
+    log_imgs = 1
+    if log_imgs:
+        pred = {'inpt': [parsed_seqs[0]['img_files']],
+                'visibility': [parsed_seqs[0]['presence']],
+                'coords': [parsed_seqs[0]['boxes']]}
+        log_imgs_seqs(pred, max_frames=50, inpts_are_filenames=1, max_obj=5)
 
     time_c = time.time()
     save_seqs_as_tfrecords(parsed_seqs, tfrecords_file, img_size=IMG_SIZE)

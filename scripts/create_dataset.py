@@ -6,6 +6,7 @@ from tf_imagenet_vid.parse import parse
 from tf_imagenet_vid.write_dataset import save_seqs_as_tfrecords
 
 import argparse
+from util import log_imgs_one_seq
 
 # command line argument parser
 ARGPARSER = argparse.ArgumentParser(
