@@ -61,7 +61,7 @@ def process_uadetrac(seq, seq_name=None, video_dir=None):
     # get number of objects in entire scene:
     n_objects = 0
     for frame in seq:
-        n_objects = int(max(max(frame['ids']), n_objects))
+        n_objects = int(max(max(frame['ids'])+1, n_objects))
     num_frames = len(seq)
 
 
@@ -77,7 +77,7 @@ def process_uadetrac(seq, seq_name=None, video_dir=None):
     presence = np.zeros([num_frames, n_objects, 1], dtype=np.uint8)
     img_files = []
 
-    classes_observed = {}
+    classes_ignored = {}
 
     for i_f, frame in enumerate(seq):
 
@@ -86,12 +86,15 @@ def process_uadetrac(seq, seq_name=None, video_dir=None):
 
         for i_id, id in enumerate(frame['ids']):
             if  frame['gt_classes'][i_id] == 1:
-                boxes[i_f,i_id,:] = frame['boxes'][i_id]
-                presence[i_f,i_id,:] = 1
+                boxes[i_f,int(id),:] = frame['boxes'][i_id]
+                presence[i_f,int(id),:] = 1
             else:
-                classes_observed[frame['gt_classes'][i_id]] = 1
+                classes_ignored[frame['gt_classes'][i_id]] = 1
 
     assert len(img_files) == num_frames
+
+    print('classes_ignored')
+    print(classes_ignored)
 
     return AttrDict(boxes=boxes, generated=generated, occluded=occluded,
                     presence=presence, n_obj=n_objects, img_files=img_files)
