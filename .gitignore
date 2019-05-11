@@ -141,3 +141,4 @@ fabric.properties
 
 ILSVRC2015_VID
 deleteMe
+*.tfrecords
