@@ -85,9 +85,10 @@ def save_seqs_as_tfrecords(seq_list, tfrecords_file, img_size=None):
     # tf.train.Example and tf.train.SequenceExample provide SerializeToString
     # methods:
     with tf.python_io.TFRecordWriter(tfrecords_file) as writer:
-        for seq_props in seq_list:
+        for i, seq_props in enumerate(seq_list):
             vid = video_example(seq_props, img_size)
             vid_string = vid.SerializeToString()
             writer.write(vid_string)
+            print('written ' + str(i+1) + ' of ' + str(len(seq_list)))
     # It is important that the type of a feature is the same across all samples
     # in the dataset

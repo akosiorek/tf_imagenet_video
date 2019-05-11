@@ -15,7 +15,7 @@ import numpy as np
 # this would be my training data; when done with one epoch, reset graph and
 # do this again for loading validation data
 # raw_image_dataset = tf.data.TFRecordDataset('10images.tfrecords')
-raw_image_dataset = tf.data.TFRecordDataset('tfrecordsfile_5obj_1scene')
+raw_image_dataset = tf.data.TFRecordDataset('split_train_small_v2.tfrecords')
 
 
 # Create a dictionary describing the features.
@@ -32,16 +32,20 @@ image_feature_description = {
   'presence': tf.VarLenFeature(tf.string),
 }
 
-SEQ_NUM_FRAMES = 10
-# EVERY_N_FRAMES = 2
+# IMG_SIZE = (480, 640)
+IMG_SIZE = (540, 960)
 # shape = (SEQ_NUM_FRAMES / EVERY_N_FRAMES, 360, 540, 3)
-
-IMG_SIZE = (480, 640)
 shape = (None, IMG_SIZE[0], IMG_SIZE[1], 3)
+
+SEQ_NUM_FRAMES = 50
+# EVERY_N_FRAMES = 2
+
+
+
 # for padding: has to be maximum number objects ever present in a sequence
 # (not necessarily at the same time). if chosen too large, performance loss
 # if chosen too small, will get an error when padding with negative number
-MAX_N_OBJECTS = 30
+MAX_N_OBJECTS = 55
 # how many objects to track simultaneously
 N_OBJECTS = 4
 
@@ -223,6 +227,18 @@ pred = {'inpt': [fetched_data['frames'].numpy()],
         'coords': [fetched_data['boxes'].numpy()],
         'visibility': [fetched_data['presence'].numpy()],
         }
+
+# for i in range(len(pred['coords'][0])):
+#   for k in range(len(pred['coords'][0][0])):
+#     x_min = pred['coords'][0][i, k, 0]
+#     y_min = pred['coords'][0][i, k, 1]
+#     x_max = pred['coords'][0][i, k, 2]
+#     y_max = pred['coords'][0][i, k, 3]
+#     pred['coords'][0][i, k, 0] = y_min
+#     pred['coords'][0][i, k, 1] = x_min
+#     pred['coords'][0][i, k, 2] = y_max - y_min
+#     pred['coords'][0][i, k, 3] = x_max - x_min
+
 log_imgs_from_pred(pred)
 
 

@@ -84,3 +84,98 @@ def parse_label_seq(seq_path, fixed_size=None):
             obj_by_id[i]['boxes'].append(obj)
 
     return imgs_by_folder, obj_by_id
+
+def load_UADETRAC_annotation(path,img_size=None):
+    """
+    for a given sequence, load images and bounding boxes info from XML file
+    :param index: index of a specific sequence
+    :return: record['boxes', 'gt_classes', 'gt_overlaps', 'flipped']
+
+    from
+    https://github.com/wkelongws/RDFCN_UADETRAC_AICITY/blob/master/UA_DETRAC.py
+    """
+    import xml.etree.ElementTree as ET
+    import cv2
+
+    classes = ['__background__',  # always index 0
+               'vehicle']
+    num_classes = len(classes)
+
+    roi_recs = []
+    tree = ET.parse(path)
+    frames = tree.findall('frame')
+    for ix, frame in enumerate(frames):
+        density = frame.attrib['density']  # string '7'
+        frame_num = frame.attrib['num']  # string '1'
+        img_num = ''
+        if len(frame_num) < 5:
+            for iter_img_num in range(5 - len(frame_num)):
+                img_num = '0' + img_num
+        img_num = img_num + frame_num
+
+        roi_rec = dict()
+        # roi_rec['image'] = os.path.join(self.image_path_from_index(index),
+        #                                 'img' + img_num + '.jpg')
+        # print(roi_rec['image'] )
+        # im_size = cv2.imread(roi_rec['image'],
+        #                      cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION).shape
+        # print roi_rec['image'], im_size
+        roi_rec['height'] = float(img_size[0])
+        roi_rec['width'] = float(img_size[1])
+
+        target_list = frame.findall('target_list')
+        if len(target_list) > 0:
+            tl = target_list[0]
+            targets = tl.findall('target')
+
+            # if not self.config['use_diff']:
+            #    non_diff_objs = [obj for obj in objs if int(obj.find('difficult').text) == 0]
+            #    objs = non_diff_objs
+            num_targets = len(targets)
+
+            boxes = np.zeros((num_targets, 4), dtype=np.uint16)
+            gt_classes = np.zeros((num_targets), dtype=np.int32)
+            overlaps = np.zeros((num_targets, num_classes),
+                                dtype=np.float32)
+            ids = np.zeros(num_targets)
+
+            class_to_index = dict(
+                zip(classes, range(num_classes)))
+            # Load object bounding boxes into a data frame.
+            for ix, target in enumerate(targets):
+                bbox = target.find('box').attrib
+                # Make pixel indexes 0-based
+                x1 = float(bbox['left']) - 1
+                y1 = float(bbox['top']) - 1
+                x2 = x1 + float(bbox['width'])
+                y2 = y1 + float(bbox['height'])
+
+                # get object id; the attribute 'id' starts counting at 1,
+                # we want to start counting at 0
+                ids[ix] = int(target.attrib['id']) - 1
+
+                # x1 = float(bbox.find('xmin').text) - 1
+                # y1 = float(bbox.find('ymin').text) - 1
+                # x2 = float(bbox.find('xmax').text) - 1
+                # y2 = float(bbox.find('ymax').text) - 1
+                # cls = class_to_index[obj.find('name').text.lower().strip()]
+                cls = class_to_index['vehicle']
+                # boxes[ix, :] = [x1, y1, x2, y2]
+
+                boxes[ix, :] = [float(bbox['top']) - 1, float(bbox['left']), float(bbox['height']), float(bbox['width'])]
+
+                gt_classes[ix] = cls
+                overlaps[ix, cls] = 1.0
+
+                # FAFU: this seems redundant, could also call one level above
+                # (i.e. after the for loop)
+                roi_rec.update({'boxes': boxes,
+                                'gt_classes': gt_classes,
+                                'gt_overlaps': overlaps,
+                                'max_classes': overlaps.argmax(axis=1),
+                                'max_overlaps': overlaps.max(axis=1),
+                                'flipped': False,
+                                'ids': ids})
+
+        roi_recs.append(roi_rec)
+    return roi_recs
