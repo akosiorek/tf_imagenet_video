@@ -1,4 +1,6 @@
 import io
+import gzip
+import pickle
 
 import numpy as np
 import tensorflow as tf
@@ -31,6 +33,9 @@ def read_img_as_bytes(path, img_size=None):
     img = Image.open(path)
 
     if img_size is not None:
+        # this is using the PIL.Image.Imgae.resize function
+        # (not numpy.resize!), documentation:
+        # https://pillow.readthedocs.io/en/3.1.x/reference/Image.html
         img = img.resize(reversed(img_size))
 
     img.save(buffer, format='JPEG')
@@ -92,3 +97,22 @@ def save_seqs_as_tfrecords(seq_list, tfrecords_file, img_size=None):
             print('written ' + str(i+1) + ' of ' + str(len(seq_list)))
     # It is important that the type of a feature is the same across all samples
     # in the dataset
+
+
+def save_seqs_as_gzip(seq_list, gzip_file, img_size=None):
+    data_mode = {'inpt': [],'coords': [],'presence': [],'visibility': []}
+    for i, seq_props in enumerate(seq_list):
+        data_mode['coords'].append(seq_props['boxes'])
+        data_mode['presence'].append(seq_props['presence'])
+        data_mode['visibility'].append(seq_props['presence'])
+
+        data_mode['inpt'].append([])
+        for img_file in seq_props['img_files']:
+            img = Image.open(img_file)
+            img = img.resize(reversed(img_size))
+            img = np.asarray(img)
+            data_mode['inpt'][i].append(img)
+        data_mode['inpt'][i] = np.asarray(data_mode['inpt'][i])
+        print('loaded imgs for seq. ' + str(i+1) + ' of ' + str(len(seq_list)))
+    with gzip.open(gzip_file, 'wb', 4) as f:
+        pickle.dump(data_mode, f, pickle.HIGHEST_PROTOCOL)

@@ -85,7 +85,7 @@ def parse_label_seq(seq_path, fixed_size=None):
 
     return imgs_by_folder, obj_by_id
 
-def load_UADETRAC_annotation(path,img_size=None):
+def load_UADETRAC_annotation(path,img_size=None,scaling=1):
     """
     for a given sequence, load images and bounding boxes info from XML file
     :param index: index of a specific sequence
@@ -120,8 +120,8 @@ def load_UADETRAC_annotation(path,img_size=None):
         # im_size = cv2.imread(roi_rec['image'],
         #                      cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION).shape
         # print roi_rec['image'], im_size
-        roi_rec['height'] = float(img_size[0])
-        roi_rec['width'] = float(img_size[1])
+        roi_rec['height'] = float(img_size[0])/scaling
+        roi_rec['width'] = float(img_size[1])/scaling
 
         target_list = frame.findall('target_list')
         if len(target_list) > 0:
@@ -145,10 +145,10 @@ def load_UADETRAC_annotation(path,img_size=None):
             for ix, target in enumerate(targets):
                 bbox = target.find('box').attrib
                 # Make pixel indexes 0-based
-                x1 = float(bbox['left']) - 1
-                y1 = float(bbox['top']) - 1
-                x2 = x1 + float(bbox['width'])
-                y2 = y1 + float(bbox['height'])
+                x1 = (float(bbox['left']) - 1)/scaling
+                y1 = (float(bbox['top']) - 1)/scaling
+                x2 = (x1 + float(bbox['width']))/scaling
+                y2 = (y1 + float(bbox['height']))/scaling
 
                 # get object id; the attribute 'id' starts counting at 1,
                 # we want to start counting at 0
@@ -163,6 +163,10 @@ def load_UADETRAC_annotation(path,img_size=None):
                 # boxes[ix, :] = [x1, y1, x2, y2]
 
                 boxes[ix, :] = [float(bbox['top']) - 1, float(bbox['left']), float(bbox['height']), float(bbox['width'])]
+                boxes[ix, 0] /= scaling
+                boxes[ix, 1] /= scaling
+                boxes[ix, 2] /= scaling
+                boxes[ix, 3] /= scaling
 
                 gt_classes[ix] = cls
                 overlaps[ix, cls] = 1.0

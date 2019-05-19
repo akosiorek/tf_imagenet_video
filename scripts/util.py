@@ -12,7 +12,7 @@ from PIL import Image
 
 
 def log_imgs_seqs(pred, log_prefix='train', log_dir='deleteMe', max_frames=None,
-                  max_obj=None, inpts_are_filenames=False):
+                  max_obj=None, inpts_are_filenames=False, img_size=None):
   # logs one sequence
   # pred is dict with entries:
   #   'inpt':   [T, H, W, 3]
@@ -42,9 +42,20 @@ def log_imgs_seqs(pred, log_prefix='train', log_dir='deleteMe', max_frames=None,
       fig, ax = plt.subplots(1)
 
       if inpts_are_filenames:
-        im_cur = np.asarray(Image.open(im[t]))
+        im_cur = Image.open(im[t])
+        if img_size is not None:
+          # this is using the PIL.Image.Imgae.resize function
+          # (not numpy.resize!), documentation:
+          # https://pillow.readthedocs.io/en/3.1.x/reference/Image.html
+          im_cur = im_cur.resize(reversed(img_size))
+        im_cur = np.asarray(im_cur)
       else:
         im_cur = np.array(im[t]).squeeze()
+        if img_size is not None:
+          print('ATTENTION: RESIZING SPECIFIED BUT NOT EXECUTED!')
+
+      # if img_size is not None:
+      #   im_cur = np.resize(im_cur,img_size.append(1))
 
       ax.imshow(im_cur, cmap=matplotlib.cm.Greys_r)
 

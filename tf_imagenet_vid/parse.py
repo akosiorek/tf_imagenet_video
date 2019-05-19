@@ -53,16 +53,26 @@ def extract_properties(filedict, properties, root_dir=None):
     return AttrDict(boxes=boxes, generated=generated, occluded=occluded,
                     presence=presence, n_obj=n_obj, img_files=img_files)
 
-def process_uadetrac(seq, seq_name=None, video_dir=None):
+def process_uadetrac(seq, seq_name=None, video_dir=None, offset=0):
     """Extracts properties from an {obj_id: properties} dict and converts them to
     numpy arrays.
     """
 
-    # get number of objects in entire scene:
-    n_objects = 0
-    for frame in seq:
-        n_objects = int(max(max(frame['ids'])+1, n_objects))
     num_frames = len(seq)
+
+    # get number of objects in entire scene:
+    # n_objects = 0
+    # for frame in seq:
+    #     n_objects = int(max(max(frame['ids'])+1, n_objects))
+
+    # get number of objects in this (sub)sequence:
+    dict_ids = {}
+    for frame in seq:
+        for id in frame['ids']:
+            dict_ids[int(id)] = True
+    list_ids = dict_ids.keys()
+    n_objects = len(list_ids)
+    list_ids.sort()
 
 
     # img_files = extract_files(filedict)
@@ -81,14 +91,20 @@ def process_uadetrac(seq, seq_name=None, video_dir=None):
 
     for i_f, frame in enumerate(seq):
 
-        img_file = osp.join(video_dir,'%s/img%05d.jpg' % (seq_name, i_f+1))
+        img_file = osp.join(video_dir,'%s/img%05d.jpg' % (seq_name, i_f+1+offset))
         img_files.append(img_file)
 
         for i_id, id in enumerate(frame['ids']):
+            # assign new id in bijective way so that resulting list of ids
+            # is range(0, n_objects) where every id is used
+            # new_id = int(list_ids[int(id)])
+            new_id = list_ids.index(int(id))
+            # ensure class of object is one (should typically be the case)
             if  frame['gt_classes'][i_id] == 1:
-                boxes[i_f,int(id),:] = frame['boxes'][i_id]
-                presence[i_f,int(id),:] = 1
+                boxes[i_f,new_id,:] = frame['boxes'][i_id]
+                presence[i_f,new_id,:] = 1
             else:
+                # track discarded object classes
                 classes_ignored[frame['gt_classes'][i_id]] = 1
 
     assert len(img_files) == num_frames
@@ -134,7 +150,7 @@ def parse(sequence_list, video_root_dir=None,
 
 
 def parse_uadetrac(sequence_list, annotation_dir=None, video_root_dir=None,
-          img_size=None, seq_filter=None):
+          img_size=None, seq_filter=None, split=True, scaling=1):
     """
     :param sequence_list:
     :param video_root_dir:
@@ -154,13 +170,50 @@ def parse_uadetrac(sequence_list, annotation_dir=None, video_root_dir=None,
     processed_seqs = []
     for seq in sequence_list:
         path =  osp.join(annotation_dir, seq)
-        parsed_seq = load_UADETRAC_annotation(path,img_size)
-        parsed_seqs.append(parsed_seq)
-        processed_seq = process_uadetrac(parsed_seq, seq_name=seq[:-4], video_dir=video_root_dir)
-        processed_seqs.append(processed_seq)
+        parsed_seq = load_UADETRAC_annotation(path,img_size, scaling)
+        # parsed_seqs.append(parsed_seq)
+        if split:
+            splitted, offsets = split_unprocessed(parsed_seq)
+            for i_split, splitted_element in enumerate(splitted):
+                processed_seq = process_uadetrac(splitted_element,
+                                                 seq_name=seq[:-4],
+                                                 video_dir=video_root_dir,
+                                                 offset=offsets[i_split])
+                processed_seqs.append(processed_seq)
+        else:
+            processed_seq = process_uadetrac(parsed_seq, seq_name=seq[:-4], video_dir=video_root_dir)
+            processed_seqs.append(processed_seq)
 
     # parsed_seqs = np.asarray(parsed_seqs)
     # if seq_filter is not None:
     #     parsed_seqs = seq_filter(parsed_seqs)
 
     return processed_seqs
+
+
+# FAFU 19/05/13: currently not needed, only using split_unprocessed(...)
+def split_processed(parsed_seqs):
+    splitted = []
+    for i_seq in range(len(parsed_seqs)):
+        len_i = len(parsed_seqs[i_seq]['img_files'])
+        for t in range(len_i - 100):
+            if t%50==0:
+                t_dict = {}
+                for key in parsed_seqs[i_seq]:
+                    # copy all dict entries over except n_obj as this
+                    # piece of information will change
+                    if key != 'n_obj':
+                        t_dict[key] = parsed_seqs[i_seq][key][t:t+100]
+                splitted.append(t_dict)
+    return splitted
+
+def split_unprocessed(unparsed_seq):
+    num_frames = len(unparsed_seq)
+    offsets = []
+    splitted = []
+    for t in range(num_frames - 100):
+        if t%50==0:
+            t_seq = unparsed_seq[t:t+100]
+            splitted.append(t_seq)
+            offsets.append(t)
+    return splitted, offsets

@@ -5,6 +5,7 @@ import time
 from tf_imagenet_vid.parse import parse
 from tf_imagenet_vid.parse import parse_uadetrac
 from tf_imagenet_vid.write_dataset import save_seqs_as_tfrecords
+from tf_imagenet_vid.write_dataset import save_seqs_as_gzip
 
 import argparse
 from util import log_imgs_seqs
@@ -58,6 +59,7 @@ def find_sequences(seq_folder, mode='folders'):
     return seqs
 
 
+
 if __name__ == '__main__':
     """
     :param seq_folder: path to top-level folder containing folders
@@ -68,20 +70,26 @@ if __name__ == '__main__':
     # folder containing frames of a video
     # len(sequence_list) is number of videos being loaded
     VIDEO_ROOT_DIR = '/Users/fabian/Documents/Code/Tracking/Data/Detrac/Train_imgs'
-    train = 1
+    train = 0
 
     if train:
         ANNOTATION_DIR = '/Users/fabian/Documents/Code/Tracking/Data/Detrac/Split_train_XML'
-        tfrecords_file = 'split_train.tfrecords'
+        output_file = 'split_train.tfrecords'
     else:
-
         ANNOTATION_DIR = '/Users/fabian/Documents/Code/Tracking/Data/Detrac/Split_eval_XML'
-        tfrecords_file = 'split_eval.tfrecords'
+        output_file = 'split_test.tfrecords'
 
+        ANNOTATION_DIR = '/Users/fabian/Documents/Code/Tracking/Data/Detrac/Split_eval_XML_small'
+        output_file = 'split_test_small.gzip'
+
+    split = not ('.gzip' in output_file)
 
     # tested a few images by loading them with cv2.imread(path).shape, all had
     # shape (540, 960, 3)
-    IMG_SIZE = (540, 960)
+    IMG_SIZE = [540, 960]
+    SCALING = 2.5
+    IMG_SIZE[0] = int(IMG_SIZE[0]/SCALING)
+    IMG_SIZE[1] = int(IMG_SIZE[1]/SCALING)
 
     sequence_list = find_sequences(ANNOTATION_DIR, mode='files')
     # sequence_list_fullpaths_annot = [os.path.join(seq_folder, i) for i in sequence_list]
@@ -95,16 +103,30 @@ if __name__ == '__main__':
     # 'occluded' : [T,K,1]
     # 'presence' : [T,K,1]
     time_c = time.time()
-    parsed_seqs = parse_uadetrac(sequence_list, ANNOTATION_DIR, VIDEO_ROOT_DIR, img_size=IMG_SIZE)
+    parsed_seqs = parse_uadetrac(sequence_list, ANNOTATION_DIR, VIDEO_ROOT_DIR, img_size=IMG_SIZE, scaling=SCALING, split=split)
     print('%.2fs' % (time.time() - time_c))
 
+    # split sequences into subsequences of length 100
+    # this has multiple reasons:
+    # - number of batches per epoch increase (better queuing)
+    # - loading of smaller sequences may be faster
+
+
+    # plot one sequence to folder 'deleteMe'
     log_imgs = 1
     if log_imgs:
-        pred = {'inpt': [parsed_seqs[0]['img_files']],
-                'visibility': [parsed_seqs[0]['presence']],
-                'coords': [parsed_seqs[0]['boxes']]}
-        log_imgs_seqs(pred, max_frames=50, inpts_are_filenames=1, max_obj=5)
+        pred = {'inpt': [parsed_seqs[3]['img_files']],
+                'visibility': [parsed_seqs[3]['presence']],
+                'coords': [parsed_seqs[3]['boxes']]}
+        log_imgs_seqs(pred, max_frames=50, inpts_are_filenames=1, max_obj=5, img_size=IMG_SIZE)
 
     time_c = time.time()
-    save_seqs_as_tfrecords(parsed_seqs, tfrecords_file, img_size=IMG_SIZE)
+    if '.tfrecords' in output_file:
+        save_seqs_as_tfrecords(parsed_seqs, output_file, img_size=IMG_SIZE)
+    elif '.gzip' in output_file:
+        save_seqs_as_gzip(parsed_seqs, output_file, img_size=IMG_SIZE)
+    else:
+        print('not a valid file extension')
+        exit()
+
     print('%.2fs' % (time.time() - time_c))
