@@ -114,5 +114,9 @@ def save_seqs_as_gzip(seq_list, gzip_file, img_size=None):
             data_mode['inpt'][i].append(img)
         data_mode['inpt'][i] = np.asarray(data_mode['inpt'][i])
         print('loaded imgs for seq. ' + str(i+1) + ' of ' + str(len(seq_list)))
+    data_mode['inpt'] = np.asarray(data_mode['inpt'])
+    data_mode['coords'] = np.asarray(data_mode['coords'])
+    data_mode['presence'] = np.asarray(data_mode['presence'])
+    data_mode['visibility'] = np.asarray(data_mode['visibility'])
     with gzip.open(gzip_file, 'wb', 4) as f:
         pickle.dump(data_mode, f, pickle.HIGHEST_PROTOCOL)
