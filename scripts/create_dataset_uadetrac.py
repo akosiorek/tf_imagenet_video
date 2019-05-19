@@ -66,20 +66,25 @@ if __name__ == '__main__':
         with annotations.
     """
 
+    if sys.platform == "darwin":
+        user = '/Users'
+    else:
+        user = '/home'
+
     # sequence_list is a list of strings of annotation folders with each
     # folder containing frames of a video
     # len(sequence_list) is number of videos being loaded
-    VIDEO_ROOT_DIR = '/Users/fabian/Documents/Code/Tracking/Data/Detrac/Train_imgs'
+    VIDEO_ROOT_DIR = user+'/fabian/Documents/Code/Tracking/Data/Detrac/Train_imgs'
     train = 0
 
     if train:
-        ANNOTATION_DIR = '/Users/fabian/Documents/Code/Tracking/Data/Detrac/Split_train_XML'
+        ANNOTATION_DIR = user+'/fabian/Documents/Code/Tracking/Data/Detrac/Split_train_XML'
         output_file = 'split_train.tfrecords'
     else:
-        ANNOTATION_DIR = '/Users/fabian/Documents/Code/Tracking/Data/Detrac/Split_eval_XML'
+        ANNOTATION_DIR = user+'/fabian/Documents/Code/Tracking/Data/Detrac/Split_eval_XML'
         output_file = 'split_test.tfrecords'
 
-        ANNOTATION_DIR = '/Users/fabian/Documents/Code/Tracking/Data/Detrac/Split_eval_XML_small'
+        ANNOTATION_DIR = user+'/fabian/Documents/Code/Tracking/Data/Detrac/Split_eval_XML_small'
         output_file = 'split_test_small.gzip'
 
     split = not ('.gzip' in output_file)
@@ -113,7 +118,7 @@ if __name__ == '__main__':
 
 
     # plot one sequence to folder 'deleteMe'
-    log_imgs = 1
+    log_imgs = 0
     if log_imgs:
         pred = {'inpt': [parsed_seqs[3]['img_files']],
                 'visibility': [parsed_seqs[3]['presence']],
