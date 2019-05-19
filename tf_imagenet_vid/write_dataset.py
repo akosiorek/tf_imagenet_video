@@ -109,7 +109,7 @@ def save_seqs_as_gzip(seq_list, gzip_file, img_size=None):
         data_mode['inpt'].append([])
         for img_file in seq_props['img_files']:
             img = Image.open(img_file)
-            img = img.resize(reversed(img_size))
+            img = img.resize(img_size[::-1])
             img = np.asarray(img)
             data_mode['inpt'][i].append(img)
         data_mode['inpt'][i] = np.asarray(data_mode['inpt'][i])

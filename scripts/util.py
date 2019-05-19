@@ -47,7 +47,7 @@ def log_imgs_seqs(pred, log_prefix='train', log_dir='deleteMe', max_frames=None,
           # this is using the PIL.Image.Imgae.resize function
           # (not numpy.resize!), documentation:
           # https://pillow.readthedocs.io/en/3.1.x/reference/Image.html
-          im_cur = im_cur.resize(reversed(img_size))
+          im_cur = im_cur.resize(img_size[::-1])
         im_cur = np.asarray(im_cur)
       else:
         im_cur = np.array(im[t]).squeeze()
